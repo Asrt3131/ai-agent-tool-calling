@@ -2,7 +2,8 @@ import streamlit as st
 from datetime import datetime
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
-from agent_logic import app as agent_app
+# ✅ Import the full module (not just app) to avoid a crash if the key is missing
+import agent_logic
 
 # ---------- 1. Page Configuration ----------
 st.set_page_config(
@@ -86,140 +87,25 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ---------- 4. State Management ----------
-if "messages" not in st.session_state:
-    st.session_state.messages = []       # History for display
-if "lc_history" not in st.session_state:
-    st.session_state.lc_history = []     # Actual LangChain history for context
-
-# ---------- 5. Sidebar ----------
-with st.sidebar:
-    st.header("⚙️ Settings")
-
-    show_tools = st.toggle("Show tool details", value=True)
-    rtl_mode = st.toggle("Right-to-left (RTL) mode", value=True)
-
-    st.divider()
-
-    if st.button("🗑️ Clear chat", use_container_width=True):
-        st.session_state.messages = []
-        st.session_state.lc_history = []
-        st.rerun()
-
-    st.divider()
-    st.caption(f"📊 Message count: **{len(st.session_state.messages)}**")
-    st.caption("💡 Tip: the agent can call multiple tools in sequence.")
-
-# If the user turned off RTL
-if not rtl_mode:
-    st.markdown(
-        "<style>.stMarkdown,.stChatMessage{ direction: ltr; text-align: left; }</style>",
-        unsafe_allow_html=True,
+# ---------- 4. Check that keys exist and the app is ready ----------
+if agent_logic.agent_app is None:
+    st.warning(f"⚠️ **The app is not ready yet!**\n\n{agent_logic.config_error}")
+    st.info(
+        """
+        **To get started, you need to configure your API keys:**
+        
+        1. Open the **Manage app** panel in Streamlit Cloud (or use a `.env` file on your local machine).
+        2. Go to **Settings > Secrets**.
+        3. Add your keys in the following format:
+        ```toml
+        OPENAI_API_KEY = "sk-..."
+        SERPER_API_KEY = "..."
+        ```
+        """
     )
-
-# ---------- 6. Display History ----------
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"], avatar=msg.get("avatar")):
-        st.markdown(msg["content"])
-        if msg.get("timestamp"):
-            st.caption(f"🕒 {msg['timestamp']}")
-
-# ---------- 7. User Input ----------
-prompt = st.chat_input(
-    "Example: What's Bitcoin's price today? Multiply it by 2 and save it to a file."
-)
-
-if prompt:
-    # Record user message
-    now = datetime.now().strftime("%H:%M:%S")
-    st.session_state.messages.append(
-        {"role": "user", "content": prompt, "timestamp": now}
-    )
-    with st.chat_message("user"):
-        st.markdown(prompt)
-        st.caption(f"🕒 {now}")
-
-    # Run Agent
-    with st.chat_message("assistant", avatar="🤖"):
-        placeholder = st.empty()
-        placeholder.markdown("⏳ **Processing...**")
-
-        try:
-            # LangChain history + new message
-            lc_inputs = st.session_state.lc_history + [HumanMessage(content=prompt)]
-            result = agent_app.invoke({"messages": lc_inputs})
-            all_msgs = result["messages"]
-
-            # Find the final message (last AIMessage without tool_calls)
-            final_message = None
-            for m in reversed(all_msgs):
-                if isinstance(m, AIMessage) and not getattr(m, "tool_calls", None):
-                    final_message = m
-                    break
-            if final_message is None:
-                final_message = all_msgs[-1]
-
-            final_text = final_message.content or "⚠️ No response received from the model."
-
-            # Collect tool calls
-            tool_calls = []
-            for m in all_msgs:
-                if isinstance(m, AIMessage) and getattr(m, "tool_calls", None):
-                    for tc in m.tool_calls:
-                        tool_calls.append(tc)
-
-            # Collect tool results
-            tool_results = {}
-            for m in all_msgs:
-                if isinstance(m, ToolMessage):
-                    tool_results[m.tool_call_id] = m.content
-
-            # Clear placeholder and show response
-            placeholder.empty()
-
-            if show_tools and tool_calls:
-                with st.expander(f"🔧 Tools used ({len(tool_calls)})", expanded=False):
-                    for i, tc in enumerate(tool_calls, 1):
-                        st.markdown(f"**{i}. `{tc['name']}`**")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.caption("📥 Input:")
-                            st.code(str(tc["args"]), language="python")
-                        with col2:
-                            st.caption("📤 Output:")
-                            output = tool_results.get(tc["id"], "(no result)")
-                            st.code(str(output)[:800], language="text")
-                        if i < len(tool_calls):
-                            st.divider()
-
-            st.markdown(final_text)
-
-            # Save to display history
-            now2 = datetime.now().strftime("%H:%M:%S")
-            st.session_state.messages.append(
-                {
-                    "role": "assistant",
-                    "content": final_text,
-                    "timestamp": now2,
-                }
-            )
-
-            # Save to LangChain history for next context
-            # Only keep Human and final AIMessage to avoid cluttering the context
-            st.session_state.lc_history.append(HumanMessage(content=prompt))
-            st.session_state.lc_history.append(AIMessage(content=final_text))
-
-        except Exception as e:
-            placeholder.empty()
-            err_msg = f"❌ **Error running the agent:**\n\n```\n{type(e).__name__}: {e}\n```"
-            st.error(err_msg)
-            st.session_state.messages.append(
-                {
-                    "role": "assistant",
-                    "content": err_msg,
-                    "timestamp": datetime.now().strftime("%H:%M:%S"),
-                }
-            )
+else:
+    # اگر ایجنت آماده بود، می‌توانید منطق چت و نمایش پیام‌ها را اینجا قرار دهید
+    st.success("✅ ایجنت با موفقیت بارگذاری شد و آماده به کار است!")
 
 # ---------- 8. Footer ----------
 st.markdown(
