@@ -1,0 +1,7 @@
+langgraph
+langchain-openai
+langchain-community
+wikipedia
+google-search-results
+streamlit
+python-dotenv
