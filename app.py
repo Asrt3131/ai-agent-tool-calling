@@ -76,16 +76,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ---------- 3. Beautiful Header ----------
-st.markdown(
-    """
-    <div class="app-header">
-        <h1>🤖 AI Agent with Tool-Calling</h1>
-        <p>Search · Wikipedia · Calculator · File Saver — powered by LangGraph & GPT-4o-mini</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
 # ---------- 4. Check that keys exist and the app is ready ----------
 if agent_logic.agent_app is None:
@@ -117,3 +107,4 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
